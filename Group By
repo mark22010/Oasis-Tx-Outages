@@ -1,0 +1,47 @@
+import requests
+import zipfile
+import datetime
+import os
+import time
+import glob, Functions as fnk
+import pandas as pd
+import numpy as np
+import urllib.request as urllib
+
+# http://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=TRNS_OUTAGE&version=1&ti_id=ALL&ti_direction=ALL&startdatetime=20180707T07:00-0000&enddatetime=20180708T07:00-0000
+
+start = time.time()
+root = 'T:\\Python\\Oasis Tx Outages\\'
+files = glob.glob(root+ '*')
+for f in files:
+    os.remove(f)
+day = 'Tomorrow' #'Today', 'Tomorrow'
+
+if day == 'Today': #today as start and tomorrow as end is tomorrows market date
+    Minus_day = -1
+    Plus_Day = 0
+    report_start = -3
+    report_end = 1
+else:
+    Minus_day = 0
+    Plus_Day = 1
+    report_start = -2
+    report_end = 2
+todaydate = datetime.datetime.now()
+start_dt = todaydate + datetime.timedelta(days=Minus_day)
+start_dt_str = start_dt.strftime('%Y%m%d')
+tomorrow_dt = todaydate + datetime.timedelta(days=Plus_Day)
+tomorrow_dt_str = tomorrow_dt.strftime('%Y%m%d')
+# =========== Pull published files ===========
+#  http://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=TRNS_OUTAGE&version=1&ti_id=ALL&ti_direction=ALL&startdatetime=20180707T07:00-0000&enddatetime=20180708T07:00-0000
+url = 'http://oasis.caiso.com/oasisapi/SingleZip?resultformat=6&queryname=TRNS_OUTAGE&version=1&ti_id=ALL&ti_direction=ALL&startdatetime='+start_dt_str+'T07:00-0000&enddatetime='+tomorrow_dt_str+'T07:00-0000'
+
+fnk.download_file(root,'CAISO_Tx_Out',url)
+oasis_outages = fnk.find_file_in_dir(root,'TRNS_OUT')
+oasis_outages = pd.read_csv(oasis_outages[0])
+# oasis_outages= oasis_outages.drop(['START_HOUR','END_HOUR','AUDIT_TYPE','UPD_DATE', 'UPD_DATE_GMT','UPD_BY','OASIS_REC_STAT', 'INTERVALSTARTTIME_GMT', 'INTERVALENDTIME_GMT'],1)
+# oasis_outages_daily = oasis_outages.groupby(by=['TI_ID', 'TI_DIRECTION', 'EQUIPMENT_OUTAGE', 'OUTAGE_NOTES','START_DATE', 'END_DATE',]).sum()
+oasis_outages_daily_avg = oasis_outages[['TI_ID','TI_DIRECTION','EQUIPMENT_OUTAGE','OUTAGE_NOTES','START_DATE','END_DATE','CURTAILED_OTC_MW']].groupby(['TI_ID','TI_DIRECTION','EQUIPMENT_OUTAGE','OUTAGE_NOTES','START_DATE','END_DATE']).mean()
+oasis_outages_daily_avg .to_csv(root+'Test.csv')
+
+oasis_outages.to_pickle(root + 'pickle.pkl')
